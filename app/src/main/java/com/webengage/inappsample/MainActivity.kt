@@ -110,12 +110,12 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
         Log.d(Constants.TAG, "onInAppNotificationDismissed ${p1.experimentId}")
     }
 
-    fun trackImpression(inAppNotificationData: InAppNotificationData) {
+    private fun trackImpression(inAppNotificationData: InAppNotificationData) {
         WebEngage.get().analytics()
             .trackSystem(Constants.NOTIFICATION_VIEW, getSystemMap(inAppNotificationData), null)
     }
 
-    fun trackClick(inAppNotificationData: InAppNotificationData, ctaId: String) {
+    private fun trackClick(inAppNotificationData: InAppNotificationData, ctaId: String) {
         val map = getSystemMap(inAppNotificationData)
         map[Constants.CTA_ID] = ctaId
         WebEngage.get().analytics()
@@ -125,13 +125,13 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
 
     }
 
-    fun trackDismiss(inAppNotificationData: InAppNotificationData) {
+    private fun trackDismiss(inAppNotificationData: InAppNotificationData) {
         inAppRenderInProgress = false
         WebEngage.get().analytics()
             .trackSystem(Constants.NOTIFICATION_CLOSE, getSystemMap(inAppNotificationData), null)
     }
 
-    fun getSystemMap(inAppNotificationData: InAppNotificationData): MutableMap<String, String> {
+    private fun getSystemMap(inAppNotificationData: InAppNotificationData): MutableMap<String, String> {
         val systemData: MutableMap<String, String> = mutableMapOf()
         systemData[Constants.EXPERIMENT_ID] = inAppNotificationData.experimentId
         systemData[Constants.NOTIFICATION_ID] = inAppNotificationData.variationId
