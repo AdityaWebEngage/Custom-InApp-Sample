@@ -5,6 +5,8 @@ import android.content.DialogInterface
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.Button
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.webengage.sdk.android.WebEngage
@@ -24,7 +26,9 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        findViewById<Button>(R.id.track).setOnClickListener(View.OnClickListener {
+            WebEngage.get().analytics().track("Random Event")
+        })
     }
 
     override fun onStart() {
@@ -88,7 +92,6 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
             .setTitle("Custom Inapp ${data.experimentId}")
             .setNegativeButton("Close", DialogInterface.OnClickListener { dialog, which ->
                 trackDismiss(data)
-                WebEngage.get().analytics().track("closed")
             })
 
 
