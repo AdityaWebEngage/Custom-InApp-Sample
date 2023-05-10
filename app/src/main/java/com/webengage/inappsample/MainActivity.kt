@@ -7,20 +7,19 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.internal.ContextUtils.getActivity
 import com.webengage.sdk.android.WebEngage
 import com.webengage.sdk.android.actions.render.InAppNotificationData
 import com.webengage.sdk.android.callbacks.InAppNotificationCallbacks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.net.URL
 
 
 class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
 
     private val inAppsShown: HashSet<String> = HashSet()
-    private val qualifiedInAppLists: HashMap<String, InAppNotificationData> = HashMap()
+    private val inAppDataMap: HashMap<String, InAppNotificationData> = HashMap()
+    private val qualifiedInApps: MutableList<String> = mutableListOf()
     private var inAppRenderInProgress: Boolean = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,10 +44,11 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
         p1: InAppNotificationData
     ): InAppNotificationData {
         Log.d(Constants.TAG, "onInAppNotificationPrepared ${p1.experimentId}")
-        qualifiedInAppLists[p1.experimentId] = p1
+        inAppDataMap[p1.experimentId] = p1
+        qualifiedInApps.add(p1.experimentId)
         p1.setShouldRender(false)
         if (!inAppsShown.contains(p1.experimentId) && !inAppRenderInProgress) {
-            CoroutineScope(Dispatchers.Main).launch{
+            CoroutineScope(Dispatchers.Main).launch {
                 renderInApp(p1)
             }
         }
@@ -66,22 +66,29 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
         val builder: AlertDialog.Builder = AlertDialog.Builder(this)
 
         val ctaArray = data.data.getJSONArray("actions")
-        if(ctaArray.length() > 0){
+        if (ctaArray.length() > 0) {
             val ctaText = ctaArray.getJSONObject(0).getString("actionText")
             var ctaDeeplink = ctaArray.getJSONObject(0).getString("actionLink")
             ctaDeeplink = ctaDeeplink.removePrefix("w://p/open_url_in_browser/")
             Log.d(Constants.TAG, " deeplink : ${Uri.decode(ctaDeeplink)}")
 
             val ctaActionId = ctaArray.getJSONObject(0).getString("actionEId")
-            builder.setPositiveButton(ctaText,DialogInterface.OnClickListener{dialog, which ->
+            builder.setPositiveButton(ctaText, DialogInterface.OnClickListener { dialog, which ->
                 trackClick(data, ctaActionId)
-                Log.d(Constants.TAG, " perform onclick action here if required : ${Uri.decode(ctaDeeplink).toString()}")
+                trackDismiss(data)
+                Log.d(
+                    Constants.TAG,
+                    " perform onclick action here if required : ${
+                        Uri.decode(ctaDeeplink).toString()
+                    }"
+                )
             })
         }
         builder.setMessage(data.data["description"].toString())
             .setTitle("Custom Inapp ${data.experimentId}")
             .setNegativeButton("Close", DialogInterface.OnClickListener { dialog, which ->
                 trackDismiss(data)
+                WebEngage.get().analytics().track("closed")
             })
 
 
@@ -105,8 +112,6 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
     }
 
     override fun onInAppNotificationDismissed(p0: Context?, p1: InAppNotificationData) {
-        inAppRenderInProgress = false
-        qualifiedInAppLists.remove(p1.experimentId)
         Log.d(Constants.TAG, "onInAppNotificationDismissed ${p1.experimentId}")
     }
 
@@ -126,9 +131,14 @@ class MainActivity : AppCompatActivity(), InAppNotificationCallbacks {
     }
 
     private fun trackDismiss(inAppNotificationData: InAppNotificationData) {
-        inAppRenderInProgress = false
         WebEngage.get().analytics()
             .trackSystem(Constants.NOTIFICATION_CLOSE, getSystemMap(inAppNotificationData), null)
+        inAppDataMap.remove(inAppNotificationData.experimentId)
+        inAppRenderInProgress = false
+        if(qualifiedInApps.size > 0 && inAppDataMap.size > 0){
+            if(inAppDataMap.contains(qualifiedInApps[0]) )
+                renderInApp(inAppDataMap[qualifiedInApps[0]]!!)
+        }
     }
 
     private fun getSystemMap(inAppNotificationData: InAppNotificationData): MutableMap<String, String> {
